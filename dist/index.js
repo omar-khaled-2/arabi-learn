@@ -27,7 +27,6 @@ const ArabicOcr_1 = __importDefault(require("./solutation validators/ArabicOcr")
 const DotDetector_1 = __importDefault(require("./solutation validators/DotDetector"));
 const MCQ_1 = __importDefault(require("./solutation validators/MCQ"));
 const Checkbox_1 = __importDefault(require("./solutation validators/Checkbox"));
-const promises_1 = __importDefault(require("readline/promises"));
 (0, dotenv_1.config)();
 const port = +process.env.PORT;
 const generateToken = () => {
@@ -45,9 +44,8 @@ let redisClient = (0, redis_1.createClient)({
 redisClient.connect().then(() => {
     console.log("Connected to redis");
 });
-const rl = promises_1.default.createInterface({
-    input: process.stdin,
-    output: process.stdout
+redisClient.on("error", (err) => {
+    console.log(err);
 });
 mongoose_1.default.connect(process.env.MONGODB_URL)
     .then(() => {

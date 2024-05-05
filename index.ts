@@ -18,7 +18,6 @@ import Checkbox from './solutation validators/Checkbox'
 import fs from 'fs'
 import fetch from 'node-fetch'
 
-import readlin from 'readline/promises'
 
 config();
 const port = +process.env.PORT!;
@@ -54,10 +53,9 @@ redisClient.connect().then(() => {
     console.log("Connected to redis")
 })
 
-const rl = readlin.createInterface({
-    input: process.stdin,
-    output: process.stdout
-  });
+redisClient.on("error",(err) => {
+    console.log(err)
+})
 
 mongoose.connect(process.env.MONGODB_URL!)
 .then(() => {
