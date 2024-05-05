@@ -9,6 +9,8 @@ npm-debug.log*
 # Testing
 coverage/
 
+dist/
+
 # Environment variables
 .env
 
@@ -58,7 +60,6 @@ build/Release
 # Sapper
 __sapper__/
 
-./dist
 
 # Vuepress
 .vuepress/dist
