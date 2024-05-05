@@ -58,7 +58,7 @@ build/Release
 # Sapper
 __sapper__/
 
-dist
+./dist
 
 # Vuepress
 .vuepress/dist
