@@ -280,6 +280,8 @@ app.get("/next",async (req,res) => {
             const arr = str!.split(",");
             const participant = arr[0];
             const difficulty = +arr[1];
+            console.log(5)
+            
             await redisClient.multi()
             .hSet(`quiz:${token}:state`,"participant",participant)
             .hSet(`quiz:${token}:state`,"difficulty",difficulty)
