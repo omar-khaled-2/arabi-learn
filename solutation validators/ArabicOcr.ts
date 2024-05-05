@@ -1,8 +1,8 @@
 import { QuestionDocument } from "../models/question";
 import {LayersModel, loadLayersModel,node,tensor,Tensor}  from "@tensorflow/tfjs-node"
 import path from "path";
-import sharp from "sharp";
 import {createCanvas} from 'canvas'
+import sharp from "sharp";
 import fs from 'fs'
 
 class ArabicOCR {
@@ -51,6 +51,10 @@ class ArabicOCR {
             y2 = Math.max(y2,points[i+1])
         }
 
+        x1 -= lineWidth;
+        x2 += lineWidth;
+        y1 -= lineWidth;
+        y2 += lineWidth;
 
         for(let i = 0;i < points.length;i+=2){
             if(points[i] == -1){
@@ -59,20 +63,34 @@ class ArabicOCR {
             }
 
             points[i] = points[i] - x1
-            points[i+1] = points[i+1] - y1
+            points[i+1] = points[i+1] - y1 
         }
 
-        const width = x2 - x1 + lineWidth;
-        const height = y2 - y1 + lineWidth;
+   
+        const width = 150;
+        const height = 150;
+        const w = x2 - x1 + lineWidth;
+        const h = y2 - y1 + lineWidth;
+
 
         const canvas = createCanvas(width,height);
 
 
+
+        
+    
+
+
+
+
         const ctx = canvas.getContext('2d')
+
+
+        ctx.scale(width / w, height / h);
 
         ctx.fillStyle = 'white';
         ctx.strokeStyle = '#fff';
-        ctx.fillRect(0, 0, width, height);
+        ctx.fillRect(0, 0, w, h);
 
     
         ctx.strokeStyle = '#000';
@@ -81,6 +99,8 @@ class ArabicOCR {
 
         let isLine = false;
 
+
+  
 
         for(let i = 0;i < points.length;i+=2){
             if(points[i] == -1){
@@ -98,15 +118,43 @@ class ArabicOCR {
             }
         }
 
-        const buffer = canvas.toBuffer("image/jpeg");
-        const data = await sharp(buffer).resize({"fit":"fill","width":150,"height":150}).grayscale().raw().toBuffer();
+        
 
-        const ten = tensor(data).reshape([1,150,150,1])
+
+        const buffer = canvas.toBuffer("raw");
+
+        
+
+        const grayscaleBuffer = Buffer.alloc(width * height);
+
+     
+
+        for(let i = 0;i < grayscaleBuffer.length;i++){
+            const r = buffer[i * 4];
+            const g = buffer[i * 4 + 1];
+            const b = buffer[i * 4 + 2];
+
+         
+            grayscaleBuffer[i] = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+            
+
+        }
+
+
+        sharp(grayscaleBuffer,{raw:{width:150,height:150,channels:1}}).jpeg().toFile("image.jpg")
+
+
+
+
+
+        
+        const ten = tensor(grayscaleBuffer).reshape([1,width,height,1])
         const result = this.model!.predict(ten) as Tensor;
 
         const index = (await result.argMax(1).data())[0]
         
         return this.words[index] == question.expectedWord
+     
     }
 }
 

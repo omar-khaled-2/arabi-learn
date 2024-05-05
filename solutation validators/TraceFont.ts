@@ -1,7 +1,6 @@
 import { QuestionDocument } from "../models/question";
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import path from "path";
-import sharp from "sharp";
+
 import { config } from "dotenv";
 import Coordinate from "../Coordinate";
 

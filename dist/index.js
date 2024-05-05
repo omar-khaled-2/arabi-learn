@@ -72,7 +72,7 @@ app.post("/register", (req, res) => __awaiter(void 0, void 0, void 0, function* 
         difficulty: 0,
         maxDifficulty: skill.maxDifficulty
     });
-    yield redisClient.lPush(`quiz:${token}:participants`, participants.map(p => p + ",2"));
+    yield redisClient.lPush(`quiz:${token}:participants`, participants.map(p => p + ",1"));
     res.json({ token });
 }));
 app.get("/question", (req, res) => __awaiter(void 0, void 0, void 0, function* () {

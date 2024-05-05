@@ -2,7 +2,7 @@ import mongoose from 'mongoose'
 import http from 'http'
 import { config } from 'dotenv'
 import express, { Request } from 'express'
-import sharp, { bool } from 'sharp'
+
 import { createClient } from 'redis';
 import SkillModel from './models/skill'
 import QuestionModel from './models/question'
@@ -100,7 +100,7 @@ app.post("/register",async (req,res) => {
         maxDifficulty:skill.maxDifficulty
     });
 
-    await redisClient.lPush(`quiz:${token}:participants`,participants.map(p => p + ",2"));
+    await redisClient.lPush(`quiz:${token}:participants`,participants.map(p => p + ",1"));
 
 
 
