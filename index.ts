@@ -281,19 +281,19 @@ app.get("/next",async (req,res) => {
             const participant = arr[0];
             const difficulty = +arr[1];
             console.log(5)
-            
-            await redisClient.multi()
-            .hSet(`quiz:${token}:state`,"participant",participant)
-            .hSet(`quiz:${token}:state`,"difficulty",difficulty)
-            .hSet(`quiz:${token}:state`,"questionIndex",-1)
-            .hSet(`quiz:${token}:result`,{
+
+            await redisClient.hSet(`quiz:${token}:state`,"participant",participant);
+            await redisClient.hSet(`quiz:${token}:state`,"difficulty",difficulty);
+            await redisClient.hSet(`quiz:${token}:state`,"questionIndex",-1);
+            await redisClient.hSet(`quiz:${token}:result`,{
                 participant,
                 correctAnswers:0,
                 wrongAnswers:0,
                 difficulty,
                 duration:0
             })
-            .exec();
+
+      
             console.log(5)
             return res.json({next:"participant"});
         }
