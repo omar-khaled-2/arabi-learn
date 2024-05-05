@@ -58,6 +58,11 @@ redisClient.on("error",(err) => {
     console.log(err)
 })
 
+redisClient.on("end",() => {
+
+    console.log("Disconnected from redis")
+})
+
 mongoose.connect(process.env.MONGODB_URL!)
 .then(() => {
     console.log("mongoDB connected")
