@@ -23,7 +23,6 @@ config();
 const port = +process.env.PORT!;
 
 
-console.log(2);
 
 
 
@@ -43,31 +42,22 @@ app.use(express.json())
 
 
 
-
+console.log(process.env.REDIS_URL)
 
 let redisClient = createClient({
     url:process.env.REDIS_URL!
     
 })
-redisClient.connect().then(() => {
 
-    console.log("Connected to redis")
-})
+redisClient.on('error', err => console.log('Redis Client Error', err));
 
-redisClient.on("error",(err) => {
-    console.log(err)
-})
+//on connect, report the connection
+redisClient.on('connect', () => console.log('Redis Client Connected'));
 
-redisClient.on("end",() => {
+redisClient.connect()
 
-    console.log("Disconnected from redis")
-})
 
 mongoose.connect(process.env.MONGODB_URL!)
-.then(() => {
-    console.log("mongoDB connected")
-
-});
 
 
 app.get("/",(req,res) => {

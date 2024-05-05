@@ -29,7 +29,6 @@ const MCQ_1 = __importDefault(require("./solutation validators/MCQ"));
 const Checkbox_1 = __importDefault(require("./solutation validators/Checkbox"));
 (0, dotenv_1.config)();
 const port = +process.env.PORT;
-console.log(2);
 const generateToken = () => {
     return Date.now().toString(36);
 };
@@ -39,22 +38,15 @@ const getTokenFromRequest = (request) => {
 const app = (0, express_1.default)();
 const s3Client = new client_s3_1.S3Client();
 app.use(express_1.default.json());
+console.log(process.env.REDIS_URL);
 let redisClient = (0, redis_1.createClient)({
     url: process.env.REDIS_URL
 });
-redisClient.connect().then(() => {
-    console.log("Connected to redis");
-});
-redisClient.on("error", (err) => {
-    console.log(err);
-});
-redisClient.on("end", () => {
-    console.log("Disconnected from redis");
-});
-mongoose_1.default.connect(process.env.MONGODB_URL)
-    .then(() => {
-    console.log("mongoDB connected");
-});
+redisClient.on('error', err => console.log('Redis Client Error', err));
+//on connect, report the connection
+redisClient.on('connect', () => console.log('Redis Client Connected'));
+redisClient.connect();
+mongoose_1.default.connect(process.env.MONGODB_URL);
 app.get("/", (req, res) => {
     res.send("hello");
 });
