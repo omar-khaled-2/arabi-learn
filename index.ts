@@ -96,20 +96,19 @@ app.post("/register",async (req,res) => {
     
     
     
-        console.log(token)
+
         await redisClient.hSet(`quiz:${token}:state`,{
             questionIndex:-1,
             skillId,
             difficulty:0,
             maxDifficulty:skill.maxDifficulty
         });
-        console.log("set state");
-    
+
         await redisClient.lPush(`quiz:${token}:participants`,participants.map(p => p + ",1"));
     
 
         
-        console.log("set participants");
+     
         res.json({token})
     }catch(err){
         console.log(err);
@@ -234,10 +233,9 @@ app.get("/next",async (req,res) => {
     try {
         const token = getTokenFromRequest(req);
 
-        console.log(1)
         const currentParticipant = await redisClient.hGet(`quiz:${token}:state`,"participant");
         
-        console.log(2)
+
         if(currentParticipant != null){
        
             const questionIndex = +(await redisClient.hGet(`quiz:${token}:state`,"questionIndex"))!;
@@ -254,7 +252,6 @@ app.get("/next",async (req,res) => {
                 return res.json({next:"question"});
             }
         }
-        console.log(3)
     
     
     
@@ -276,11 +273,11 @@ app.get("/next",async (req,res) => {
     
         const hasNextParticipant = str != null;
         if(hasNextParticipant){
-            console.log(4)
+
             const arr = str!.split(",");
             const participant = arr[0];
             const difficulty = +arr[1];
-            console.log(5)
+
 
             await redisClient.hSet(`quiz:${token}:state`,"participant",participant);
             await redisClient.hSet(`quiz:${token}:state`,"difficulty",difficulty);
@@ -294,15 +291,14 @@ app.get("/next",async (req,res) => {
             })
 
       
-            console.log(5)
+ 
             return res.json({next:"participant"});
         }
     
-        await redisClient.multi()
-        .del(`quiz:${token}:state`)
-        .del(`quiz:${token}:participants`)
-        .del(`quiz:${token}:result`)
-        .exec();
+        await redisClient.del(`quiz:${token}:state`);
+        await redisClient.del(`quiz:${token}:result`);
+        await redisClient.del(`quiz:${token}:participants`);
+
         return res.json({next:"results"});
     } catch (error) {
         console.log(error)
