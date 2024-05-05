@@ -29,7 +29,7 @@ const MCQ_1 = __importDefault(require("./solutation validators/MCQ"));
 const Checkbox_1 = __importDefault(require("./solutation validators/Checkbox"));
 (0, dotenv_1.config)();
 const port = +process.env.PORT;
-console.log(1);
+console.log(2);
 const generateToken = () => {
     return Date.now().toString(36);
 };
