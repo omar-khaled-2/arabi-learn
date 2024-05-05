@@ -58,8 +58,7 @@ build/Release
 # Sapper
 __sapper__/
 
-# Next.js
-.next/
+dist
 
 # Vuepress
 .vuepress/dist

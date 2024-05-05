@@ -43,10 +43,12 @@ let redisClient = (0, redis_1.createClient)({
     url: process.env.REDIS_URL
 });
 redisClient.on('error', err => console.log('Redis Client Error', err));
-//on connect, report the connection
 redisClient.on('connect', () => console.log('Redis Client Connected'));
 redisClient.connect();
-mongoose_1.default.connect(process.env.MONGODB_URL);
+mongoose_1.default.connect(process.env.MONGODB_URL)
+    .then(() => {
+    console.log("connected to mongodb");
+});
 app.get("/", (req, res) => {
     res.send("hello");
 });

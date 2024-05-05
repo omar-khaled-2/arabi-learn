@@ -42,7 +42,6 @@ app.use(express.json())
 
 
 
-console.log(process.env.REDIS_URL)
 
 let redisClient = createClient({
     url:process.env.REDIS_URL!
@@ -51,13 +50,15 @@ let redisClient = createClient({
 
 redisClient.on('error', err => console.log('Redis Client Error', err));
 
-//on connect, report the connection
 redisClient.on('connect', () => console.log('Redis Client Connected'));
 
 redisClient.connect()
 
 
 mongoose.connect(process.env.MONGODB_URL!)
+    .then(() => {
+        console.log("connected to mongodb")
+    })
 
 
 app.get("/",(req,res) => {
