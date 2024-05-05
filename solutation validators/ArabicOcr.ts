@@ -2,7 +2,7 @@ import { QuestionDocument } from "../models/question";
 import {LayersModel, loadLayersModel,node,tensor,Tensor}  from "@tensorflow/tfjs-node"
 import path from "path";
 import {createCanvas} from 'canvas'
-import sharp from "sharp";
+
 import fs from 'fs'
 
 class ArabicOCR {
@@ -140,8 +140,6 @@ class ArabicOCR {
 
         }
 
-
-        sharp(grayscaleBuffer,{raw:{width:150,height:150,channels:1}}).jpeg().toFile("image.jpg")
 
 
 

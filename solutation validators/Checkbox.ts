@@ -1,8 +1,4 @@
 import { QuestionDocument } from "../models/question";
-import {LayersModel, loadLayersModel,node,tensor,Tensor}  from "@tensorflow/tfjs-node"
-
-import {createCanvas} from 'canvas'
-import fs from 'fs'
 
 class Checkbox {   
     static readonly instace = new Checkbox() 
