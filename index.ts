@@ -234,10 +234,12 @@ app.get("/next",async (req,res) => {
     try {
         const token = getTokenFromRequest(req);
 
-        console.log(token)
+        console.log(1)
         const currentParticipant = await redisClient.hGet(`quiz:${token}:state`,"participant");
         
+        console.log(2)
         if(currentParticipant != null){
+       
             const questionIndex = +(await redisClient.hGet(`quiz:${token}:state`,"questionIndex"))!;
             const difficulty = +(await redisClient.hGet(`quiz:${token}:state`,"difficulty"))!;
             const skillId = await redisClient.hGet(`quiz:${token}:state`,"skillId");
@@ -252,11 +254,12 @@ app.get("/next",async (req,res) => {
                 return res.json({next:"question"});
             }
         }
-    
+        console.log(3)
     
     
     
         if(currentParticipant != null){
+        
     
             const result = await redisClient.hGetAll(`quiz:${token}:result`);
             const difficulty = +(await redisClient.hGet(`quiz:${token}:state`,"difficulty"))!;
@@ -273,6 +276,7 @@ app.get("/next",async (req,res) => {
     
         const hasNextParticipant = str != null;
         if(hasNextParticipant){
+            console.log(4)
             const arr = str!.split(",");
             const participant = arr[0];
             const difficulty = +arr[1];
@@ -288,6 +292,7 @@ app.get("/next",async (req,res) => {
                 duration:0
             })
             .exec();
+            console.log(5)
             return res.json({next:"participant"});
         }
     
