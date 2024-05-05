@@ -52,8 +52,7 @@ build/Release
 # nuxt.js
 .nuxt/
 
-# NestJS
-/dist
+
 /node_modules
 
 # Sapper
