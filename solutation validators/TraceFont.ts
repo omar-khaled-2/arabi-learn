@@ -3,10 +3,17 @@ import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 import { config } from "dotenv";
 import Coordinate from "../Coordinate";
+import { AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, REGION } from "../constants";
 
 config();
 
-const s3Client = new S3Client()
+const s3Client = new S3Client({
+    region:REGION,
+    credentials: {
+        accessKeyId:AWS_ACCESS_KEY_ID,
+        secretAccessKey:AWS_SECRET_ACCESS_KEY
+    }
+})
 
 
 class TraceFont {
