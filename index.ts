@@ -23,6 +23,7 @@ config();
 const port = +process.env.PORT!;
 
 
+console.log(1);
 
 
 
