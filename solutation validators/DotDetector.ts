@@ -1,78 +1,83 @@
 import sharp from "sharp"
-import { DotField } from "../models/question"
+import {  QuestionDocument } from "../models/question"
+import Coordinate from "../Coordinate";
+import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {minWeightAssign} from 'munkres-algorithm';
+
+
+const s3Client = new S3Client()
+
 
 class DotDetector{
     static readonly instace = new DotDetector()
+
+    private DISTANCE_THRESHOLD = 30
     private constructor() {}
-    async validate(imageBuffer: Buffer,dots : DotField[]): Promise<boolean> {
+    validate(question:QuestionDocument,points:number[]): boolean {
+     
 
-        const width = 200;
-        const height = 200;
-        const image = await sharp(imageBuffer).resize({"fit":'fill',"width":width,"height":height}).flatten({background:{r:255,g:255,b:255}}).grayscale().raw().toBuffer();
+        if(points.length == 0) return false;
+        const pointsCoordinates = [];
+        const pointCount = [];
+
+
+
+        for(let i = points.length - 1;i >= 0;i-=2){
+            if(points[i] == -1){
+                i++;
+                pointsCoordinates.unshift(0,0)
+                pointCount.unshift(0)
+                continue;
+            }
+
+            pointsCoordinates[0] += points[i - 1];
+            pointsCoordinates[1] += points[i];
+            pointCount[0]++;
+        }
+
+        const dots:Coordinate[] = [];
+ 
+    
+        for(let i = 0;i < pointsCoordinates.length;i+=2){
+            const x = Math.round(pointsCoordinates[i] / pointCount[Math.floor(i / 2)]);
+            const y = Math.round(pointsCoordinates[i + 1] / pointCount[Math.floor(i / 2)]);
+        
+            dots.push(new Coordinate(x,y))
+
+        }
 
         
+        const correctDots:Coordinate[] = [];
+
+        for(let i = 0;i < question.dots.length;i+=2){
+            correctDots.push(new Coordinate(question.dots[i],question.dots[i+1]))
+        }
 
 
-    
-        const buffer = Buffer.alloc(width * height * 3,255);
 
-    
+        if(correctDots.length != dots.length) return false;
 
-        for(let dot of dots){
-            const {count,top,left,right,bottom} = dot;
-            for(let i = top;i < bottom;i++){
-                for(let j = left;j < right;j++){
-                    
-                    buffer[i * width + j] = count * 80;
-                    
-                }
+
+        const n = correctDots.length;
+        const distances:number[][] = new Array(n).fill(0).map(() => new Array(n).fill(0))
+  
+
+        for(let i = 0;i < n;i++){
+            for(let j = 0;j < n;j++){
+                distances[i][j] = correctDots[i].getDistance(dots[j])
             }
         }
 
 
-        await sharp(buffer,{raw: {width:width,height:height,channels:1}}).png().toFile("ssss.png")
-        
+        const {assignments} = minWeightAssign(distances) as {assignments:number[]};
 
 
-        const visited = Array(image.length).fill(false)
 
-        for(let dot of dots){
-            const {count,top,left,right,bottom} = dot;
-            let accumulator = 0;
-            for(let i = top;i < bottom;i++){
-                for(let j = left;j < right;j++){
-                    if(image[i * width + j] < 100 && !visited[i * width + j]){
-                        const queue = [i * width + j];
-                        while(queue.length > 0){
-                            const index = queue.shift()!;
-                            if(visited[index] || image[index] > 100)
-                                continue
-                            visited[index] = true;
-
-                            if(index % width > 0){
-                                queue.push(index - 1)
-                            }
-                            if(index % width < width - 1){
-                                queue.push(index + 1)
-                            }
-                            if(index - width >= 0){
-                                queue.push(index - 200)
-                            }
-                            if(index + width < image.length){
-                                queue.push(index + 200)
-                            }
-                        }
-                        accumulator++;
-
-                        
-                        
-                    }
-                }
-            }
-         
-            if(accumulator !== count)
-                return false
+        for(let i = 0;i < n;i++){
+            if(distances[i][assignments[i]] > this.DISTANCE_THRESHOLD) return false
         }
+        
+     
 
         return true;
     }

@@ -1,8 +1,8 @@
 import Participant from "./data/Participant";
-import { Question } from "./models/question";
+import { Question, QuestionDocument } from "./models/question";
 
 interface GameObserver {
-    onQuestionChange(question: Question,expireAt:Date): void;
+    onQuestionChange(question: QuestionDocument,expireAt:Date): void;
     onParticipantChange(participant: Participant): void;
     onCorrectAnswer(): void;
     onWrongAnswer(): void;

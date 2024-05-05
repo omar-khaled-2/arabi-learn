@@ -13,6 +13,8 @@ class GameFactory {
             throw new Error("skill not found");
 
         const questions = await QuestionModel.find({skillId});
+
+        
         const questionsGroupedByDifficulty:QuestionDocument[][] = Array(skill.maxDifficulty).fill(null).map(() => []);
 
         for(const question of questions){

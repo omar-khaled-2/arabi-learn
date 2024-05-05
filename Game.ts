@@ -2,7 +2,11 @@ import QuestionModel, { QuestionDocument } from "./models/question";
 import Queue, { QueueImpl } from "./queue";
 import GameObserver from "./GameObserver";
 import Participant from "./data/Participant";
-
+import ArabicOCR from "./solutation validators/ArabicOcr";
+import TraceFont from "./solutation validators/TraceFont";
+import {S3Client,GetObjectCommand} from "@aws-sdk/client-s3"
+import { AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, REGION } from "./constants";
+import DotDetector from "./solutation validators/DotDetector";
 
 
 interface Result{
@@ -14,21 +18,37 @@ interface Result{
 }
 
 
+const s3Client = new S3Client({region:REGION,credentials:{accessKeyId:AWS_ACCESS_KEY_ID,secretAccessKey:AWS_SECRET_ACCESS_KEY}})
+class State{
+
+
+    constructor(
+        public participant:Participant,
+        public questionIndex:number = -1,
+    ){
+        
+    }
+    
+
+    
+}
+
+
 class QuizGame{
 
     private queue:Queue<Participant> = new QueueImpl<Participant>();
-  
-    private questionIndex:number = -1;
 
-    private currentParticipant?:Participant;
+
 
     private questionStartTime?:number;
 
     timer?:NodeJS.Timeout;
-    
 
+    private state?:State;
+    
     private results:Result[] = [];
 
+   
     
     constructor(
         participants: string[],
@@ -43,7 +63,6 @@ class QuizGame{
 
 
     hasNextParticipant(){
-
         return !this.queue.isEmpty()
     }
 
@@ -53,6 +72,8 @@ class QuizGame{
         this.results[this.results.length - 1].duration += Math.ceil((Date.now() - this.questionStartTime!) / 1000);
         this.observer.onCorrectAnswer()
     }
+
+
     private handleWrongAnswer(){
         this.results[this.results.length - 1].wrongAnswers++;
         this.results[this.results.length - 1].duration += Math.ceil((Date.now() - this.questionStartTime!) / 1000);
@@ -61,25 +82,37 @@ class QuizGame{
 
 
     private hasNextQuestion(){
-
-        return this.questionIndex < this.questions[this.currentParticipant!.difficulty].length - 1
+        return this.state!.questionIndex < this.questions[this.state!.participant.difficulty].length - 1
     }
 
     private nextQuestion(){
 
-        this.questionIndex++;
+        this.state!.questionIndex++;
         const duration = .5 * 60000;
         const expireAt = new Date(new Date().getTime() + duration);
-        this.observer.onQuestionChange(this.questions[this.currentParticipant!.difficulty][this.questionIndex].toJSON(),expireAt)
+        this.observer.onQuestionChange(this.getCurrentQuestion(),expireAt)
         this.timer = setTimeout(this.handleTimeout.bind(this), duration)
         this.questionStartTime = Date.now();
     }
 
 
+    private getCurrentQuestion(){
+
+        return this.questions[this.state!.participant.difficulty][this.state!.questionIndex]
+    }
+
     private nextParticipant(){
-        this.currentParticipant = this.queue.dequeue();
-        this.observer.onParticipantChange(this.currentParticipant);
-        
+        this.state = new State(this.queue.dequeue());
+        this.results.push({
+            participant: this.state!.participant!.name,
+            correctAnswers: 0,
+            wrongAnswers: 0,
+            difficulty: this.state!.participant.difficulty,
+            duration: 0
+        })
+
+        this.observer.onParticipantChange(this.state!.participant)
+        this.nextQuestion();
     }
 
 
@@ -92,40 +125,38 @@ class QuizGame{
 
     next(){
 
-        if(this.hasNextQuestion()){
-            this.nextQuestion()
-        }else{
+        if(this.hasNextQuestion())
+           return this.nextQuestion()
+
     
 
-            if(this.results[this.results.length - 1].wrongAnswers > this.results[this.results.length - 1].correctAnswers)
-                this.queue.enqueue(this.currentParticipant!)
+        if(this.results[this.results.length - 1].wrongAnswers > this.results[this.results.length - 1].correctAnswers)
+            this.queue.enqueue(this.state!.participant)
 
-            
-            else if(this.currentParticipant!.difficulty < this.questions.length - 1){
         
-                this.currentParticipant!.levelUp();
-                this.queue.enqueue(this.currentParticipant!)
-          
-            }
-            
-
-
-            if(this.hasNextParticipant()){
-                this.nextParticipant()
-            }else
-                this.observer.onGameFinished()
+        else if(this.state!.participant.difficulty < this.questions.length - 1){
+            this.state!.participant.levelUp();
+            this.queue.enqueue(this.state!.participant)
         }
+            
+        if(this.hasNextParticipant())
+            return this.nextParticipant()
+
+
+    
+        this.observer.onGameFinished()
+        
     }
 
 
     public ready(){
-        this.questionIndex = -1;
+        
         this.next();
         this.results.push({
-            participant: this.currentParticipant!.name,
+            participant: this.state!.participant!.name,
             correctAnswers: 0,
             wrongAnswers: 0,
-            difficulty: this.currentParticipant!.difficulty,
+            difficulty: this.state!.participant.difficulty,
             duration: 0
         })
     }
@@ -141,20 +172,43 @@ class QuizGame{
 
 
 
-    async asnwer(image:Buffer){
+    async imageAnswer(image:Buffer){
+
+  
 
         clearTimeout(this.timer);
-        const question = this.questions[this.currentParticipant!.difficulty][this.questionIndex]
+        const question = this.getCurrentQuestion();
+
+   
+
+        if(question.type == "writing")
+            return await ArabicOCR.instace.validate(image,question.expectedWord!)
+        if(question.type == "font tracing"){
+            const getObjectCommand = new GetObjectCommand({
+                Bucket: "quiz-game-assets",
+                Key: question.placeholder!
+            }) 
+            const response = await s3Client.send(getObjectCommand)
+            const placeholder = await response.Body!.transformToByteArray();
+            return await TraceFont.instace.validate(image,placeholder)
+        }
+
+        if(question.type == "dots")
+            return await DotDetector.instace.validate(image,question.dots)
         
-        if(await question.isCorrect(image))
-            this.handleCorrectAnswer()
-        else
-            this.handleWrongAnswer()
-        
+        throw new Error("Invalid question type")
 
     }
 
 
+    async mcqAnswer(correctIndex:number){
+        return this.getCurrentQuestion().options[correctIndex].isCorrect;   
+    }
+
+    async checkboxAnswer(correctIndices:number[]){
+        const options = this.getCurrentQuestion().options
+        return options.every((option,index) => option.isCorrect == correctIndices.includes(index))
+    }
 
 
 

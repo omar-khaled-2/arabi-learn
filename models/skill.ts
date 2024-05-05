@@ -26,9 +26,6 @@ skillSchema.set("toJSON", {
     },  
 })
 
-skillSchema.post("deleteOne", async function (doc) {
-    await QuestionModel.deleteMany({ skillId: doc._id });
-})
 
 
 const SkillModel = model<SkillDocument>('Skill', skillSchema);
