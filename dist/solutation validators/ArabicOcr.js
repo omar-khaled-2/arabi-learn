@@ -15,7 +15,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const tfjs_node_1 = require("@tensorflow/tfjs-node");
 const path_1 = __importDefault(require("path"));
 const canvas_1 = require("canvas");
-const sharp_1 = __importDefault(require("sharp"));
 class ArabicOCR {
     constructor() {
         this.model = null;
@@ -100,7 +99,6 @@ class ArabicOCR {
                 const b = buffer[i * 4 + 2];
                 grayscaleBuffer[i] = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
             }
-            (0, sharp_1.default)(grayscaleBuffer, { raw: { width: 150, height: 150, channels: 1 } }).jpeg().toFile("image.jpg");
             const ten = (0, tfjs_node_1.tensor)(grayscaleBuffer).reshape([1, width, height, 1]);
             const result = this.model.predict(ten);
             const index = (yield result.argMax(1).data())[0];
