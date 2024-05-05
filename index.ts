@@ -44,7 +44,8 @@ app.use(express.json())
 
 
 let redisClient = createClient({
-    url:process.env.REDIS_URL!
+    url:process.env.REDIS_URL!,
+    
     
 })
 
@@ -95,12 +96,14 @@ app.post("/register",async (req,res) => {
     
     
     
+        console.log(token)
         await redisClient.hSet(`quiz:${token}:state`,{
             questionIndex:-1,
             skillId,
             difficulty:0,
             maxDifficulty:skill.maxDifficulty
         });
+        console.log("set state");
     
         await redisClient.lPush(`quiz:${token}:participants`,participants.map(p => p + ",1"));
     
