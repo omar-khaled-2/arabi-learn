@@ -109,6 +109,7 @@ app.post("/register",async (req,res) => {
     
 
         
+        console.log("set participants");
         res.json({token})
     }catch(err){
         console.log(err);
@@ -233,6 +234,7 @@ app.get("/next",async (req,res) => {
     try {
         const token = getTokenFromRequest(req);
 
+        console.log(token)
         const currentParticipant = await redisClient.hGet(`quiz:${token}:state`,"participant");
         
         if(currentParticipant != null){
