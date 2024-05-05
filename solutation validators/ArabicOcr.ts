@@ -1,4 +1,4 @@
-import { QuestionDocument } from "@/models/question";
+import { QuestionDocument } from "../models/question";
 import {LayersModel, loadLayersModel,node,tensor,Tensor}  from "@tensorflow/tfjs-node"
 import path from "path";
 import sharp from "sharp";

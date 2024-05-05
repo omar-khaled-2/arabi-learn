@@ -1,9 +1,5 @@
 import { Document, ObjectId, Schema, model } from "mongoose";
-import SkillModel from "./skill";
-import SoluationValidators from "../data/SoluationValidators";
-import ArabicOCR from "../solutation validators/ArabicOcr";
-import TraceFont from "../solutation validators/TraceFont";
-import DotDetector from "../solutation validators/DotDetector";
+
 import { getS3ObjectUrl } from "../utilties";
 
 

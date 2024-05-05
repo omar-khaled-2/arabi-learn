@@ -1,4 +1,4 @@
-import { QuestionDocument } from "@/models/question";
+import { QuestionDocument } from "../models/question";
 
 class MCQ {
 
