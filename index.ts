@@ -80,7 +80,7 @@ app.get("/",(req,res) => {
 
 app.get("/skills",async (req,res) => {
     try {
-        console.log(await Question.countDocuments())
+  
         const skills = await SkillModel.find();
         res.json(skills)
     } catch (error) {
@@ -463,5 +463,7 @@ app.use(errorHandler)
 app.listen(port, async() => {
     console.log("Server is listening on port " + port);
 
+    SkillModel.countDocuments().then(count => console.log(`Found ${count} skills`))
+    Question.countDocuments().then(count => console.log(`Found ${count} questions`))
 });
 
