@@ -1,20 +1,20 @@
-import { Document, ObjectId, Schema, model } from "mongoose";
+import { Document, Model, ObjectId, Schema, model } from "mongoose";
 
 import { getS3ObjectUrl } from "../utilties";
+import redisClient from "../redis";
+import { MINUTE } from "../constants";
 
 
-export interface BaseQuestion{
-    id:string;
-    text: string;
 
-}
 
 export interface Option{
     id:string;
     text: string;
     isCorrect: boolean;
 }
-export interface Question extends BaseQuestion{
+export interface IQuestion{
+    id:string;
+    text: string;
     difficulty:number;
     skillId: string;
     type: string;
@@ -32,8 +32,7 @@ export interface Question extends BaseQuestion{
 
 
 
-export interface QuestionDocument extends Document , Omit<Question,"id"> {
-    isCorrect: (answer: Buffer | string) => Promise<boolean>;
+export interface QuestionDocument extends Document , Omit<IQuestion,"id"> {
 }
 
 
@@ -52,14 +51,19 @@ const optionSchema = new Schema<Option>({
 optionSchema.set("toJSON", {
     transform: (doc, ret) => {
         ret.id = ret._id;
-        delete ret._id;
-        delete ret.isCorrect;
         delete ret.__v;
         return ret;
     },
 })
 
-const questionSchema = new Schema<QuestionDocument>({
+
+interface QuestionModel extends Model<IQuestion> {
+    findBySkillAndDifficulty(skillId: string, difficulty: number, index: number): Promise<QuestionDocument | null>
+    countBySkillAndDifficulty(skillId: string, difficulty: number): Promise<number>;
+  }
+  
+
+const questionSchema = new Schema<IQuestion,QuestionModel>({
     text: {type: String, required: true},
     difficulty: {type: Number, required: true},
     type: {type: String, required:true},
@@ -71,6 +75,40 @@ const questionSchema = new Schema<QuestionDocument>({
     expectedWord: {type: String},
     options: {type: [optionSchema]},
     dots: {type: [Number]},
+    
+},{
+    statics: {
+        async findBySkillAndDifficulty(skillId: string, difficulty: number, index: number): Promise<QuestionDocument | null> {
+            const cacheKey = `questions:${skillId}:${difficulty}:${index}`;
+            const cacheQuestion = await redisClient.get(cacheKey);
+            if(cacheQuestion){
+                const json = JSON.parse(cacheQuestion);
+                return new this(json);
+            }else{
+                const question = await this.findOne({skillId, difficulty}).skip(index);
+                if(question == null) return null;
+                await redisClient.set(cacheKey, JSON.stringify(question),{
+                    "EX":MINUTE
+                });
+                return question;
+            }
+        },
+        async countBySkillAndDifficulty(skillId: string, difficulty: number): Promise<number> {
+            const cacheKey = `question:${skillId}:${difficulty}:count`;
+
+            const cache = await redisClient.get(cacheKey);
+            if(cache){
+                return +cache
+            }else{
+                const count = await this.countDocuments({skillId, difficulty});
+                await redisClient.set(cacheKey, count,{
+                    "EX":MINUTE
+                });
+                return count
+            }
+        }
+            
+    }
 });
 
 
@@ -79,12 +117,6 @@ const questionSchema = new Schema<QuestionDocument>({
 
 questionSchema.set("toJSON", {
     transform: (doc, ret) => {
-        if(ret.image)
-            ret.image = getS3ObjectUrl(ret.image)
-        if(ret.placeholder)
-            ret.placeholder = getS3ObjectUrl(ret.placeholder)
-        if(ret.audio)
-            ret.audio = getS3ObjectUrl(ret.audio)
         ret.id = ret._id;
         delete ret._id;
         delete ret.__v;
@@ -98,9 +130,13 @@ questionSchema.set("toJSON", {
 
 
 
-const QuestionModel = model<QuestionDocument>('Question', questionSchema);
 
 
 
-export default QuestionModel;
+
+const Question = model<IQuestion,QuestionModel>('Question', questionSchema);
+
+
+
+export default Question;
 

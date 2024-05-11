@@ -6,8 +6,8 @@ class Checkbox {
 
     }
     validate(question:QuestionDocument,answers:string[]):boolean{
-        const correctOptions = question.options.filter(option => option.isCorrect).map(option => option.id);
 
+        const correctOptions = question.options.filter(option => option.isCorrect).map(option => option.id);
         if(correctOptions.length != answers.length) return false;
 
 

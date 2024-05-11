@@ -1,12 +1,12 @@
 import mongoose from 'mongoose'
 import http from 'http'
 import { config } from 'dotenv'
-import express, { Request } from 'express'
+import express, { ErrorRequestHandler, Request } from 'express'
 
 import { createClient } from 'redis';
 import SkillModel from './models/skill'
-import QuestionModel from './models/question'
-import { AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, MINUTE, REGION } from './constants'
+import Question from './models/question'
+import { AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, HOUR, MINUTE, REGION, SECOND } from './constants'
 import Excel from 'exceljs'
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { getS3ObjectUrl } from './utilties'
@@ -17,6 +17,10 @@ import MCQ from './solutation validators/MCQ'
 import Checkbox from './solutation validators/Checkbox'
 import fs from 'fs'
 import fetch from 'node-fetch'
+import NotFound from './errors/NotFound';
+import ApiException from './errors/ApiException';
+import BadRequest from './errors/BadRequest';
+import redisClient from './redis';
 
 
 config();
@@ -49,15 +53,7 @@ app.use(express.json())
 
 
 
-let redisClient = createClient({
-    url:process.env.REDIS_URL!,
-    
-    
-})
 
-redisClient.on('error', err => console.log('Redis Client Error', err));
-
-redisClient.on('connect', () => console.log('Redis Client Connected'));
 
 redisClient.connect()
 
@@ -68,9 +64,20 @@ mongoose.connect(process.env.MONGODB_URL!)
     })
 
 
+
+const errorHandler:ErrorRequestHandler = (err,req,res,next) => {
+    if(err instanceof ApiException)
+        return res.status(err.statusCode).json({
+            error:err.message
+        })
+
+    res.status(500).json({
+        error:"An unexpected error has occurred. Please try again later."
+    })
+}
+
+
 app.get("/",(req,res) => {
-
-
     res.send("hello")
 })
 
@@ -88,21 +95,29 @@ app.get("/skills",async (req,res) => {
 
 
 
-app.post("/register",async (req,res) => {
+app.post("/register",async (req,res,next) => {
 
     try{
-        const {skillId,participants} = req.body as {skillId:string,participants:string[]};
+        const {skillId,participants} = req.body as {skillId?:string,participants:string[]};
+        if(!skillId)
+            throw new BadRequest("skill is required");
+
+        if(!participants)
+            throw new BadRequest("participants are required");
+
+        if(participants.length === 0)
+            throw new BadRequest("at least one participant is required");
 
         const skill = await SkillModel.findById(skillId);
+
+        
     
         if(!skill)
-            throw new Error("skill not found");
+            throw new NotFound("skill not found");
     
         const token = generateToken();
     
     
-    
-
         await redisClient.hSet(`quiz:${token}:state`,{
             questionIndex:-1,
             skillId,
@@ -110,32 +125,47 @@ app.post("/register",async (req,res) => {
             maxDifficulty:skill.maxDifficulty
         });
 
+        await redisClient.expire(`quiz:${token}:state`,3 * HOUR);
+
         await redisClient.lPush(`quiz:${token}:participants`,participants.map(p => p + ",1"));
     
-
+        await redisClient.expire(`quiz:${token}:participants`,3 * HOUR);
         
      
         res.json({token})
     }catch(err){
-        console.log(err);
-
-        res.sendStatus(500)
+        next(err);
     }
 
 })
 
 
-app.get("/question",async (req,res) => {
+app.get("/question",async (req,res,next) => {
     try{
         const token = getTokenFromRequest(req);
     
-        const questionIndex = await redisClient.hGet(`quiz:${token}:state`,"questionIndex");
-        const difficulty = await redisClient.hGet(`quiz:${token}:state`,"difficulty");
-        const skillId = await redisClient.hGet(`quiz:${token}:state`,"skillId");
-        const question = await QuestionModel.findOne({skillId,difficulty}).skip(Number(questionIndex))
+        const state = await redisClient.hGetAll(`quiz:${token}:state`);
+        
+        const questionIndex = +state.questionIndex;
+        const difficulty = +state.difficulty;
+        const skillId = state.skillId;
+
+        const totalQuestions = await Question.countBySkillAndDifficulty(skillId,difficulty);
+
+
+
+        const question = await Question.findBySkillAndDifficulty(skillId,difficulty,questionIndex);
+        
+
         if(!question)
-            throw new Error("question not found");
-        const expireAt = new Date(new Date().getTime() + 3 * MINUTE);
+            throw new NotFound("question not found");
+
+
+
+
+        const expireAt = new Date(new Date().getTime() + 3 * MINUTE * 1000);
+
+    
     
         res.json({question:{
             id:question.id,
@@ -145,11 +175,9 @@ app.get("/question",async (req,res) => {
             audio:question.audio ? getS3ObjectUrl(question.audio) : undefined,
             type:question.type,
             options:question.options.map(option => ({id:option.id,text:option.text})),
-        },expireAt})
+        },expireAt,questionIndex,totalQuestions})
     }catch(err){
-        console.log(err);
-
-        res.sendStatus(500)
+        next(err)
     }
 
 
@@ -173,15 +201,14 @@ app.post("/timeout",async (req,res) => {
 })
 
 
-app.get("/participant",async (req,res) => {
+app.get("/participant",async (req,res,next) => {
     try {
         const token = getTokenFromRequest(req);
         const participant = await redisClient.hGet(`quiz:${token}:state`,"participant");
         const difficulty = +(await redisClient.hGet(`quiz:${token}:state`,"difficulty"))!;
         res.json({name:participant,difficulty})
     } catch (error) {
-        console.log(error);
-        res.sendStatus(500)
+        next(error)
     }
 
 })
@@ -189,10 +216,13 @@ app.get("/participant",async (req,res) => {
 app.post("/answer",async (req,res) => {
     try {
         const token = getTokenFromRequest(req);
-        const questionIndex = +(await redisClient.hGet(`quiz:${token}:state`,"questionIndex"))!;
-        const difficulty = await redisClient.hGet(`quiz:${token}:state`,"difficulty");
-        const skillId = await redisClient.hGet(`quiz:${token}:state`,"skillId");
-        const question = await QuestionModel.findOne({skillId,difficulty}).skip(questionIndex)
+        const state = await redisClient.hGetAll(`quiz:${token}:state`);
+        
+        const questionIndex = +state.questionIndex;
+        const difficulty = +state.difficulty;
+        const skillId = state.skillId;
+
+        const question = await Question.findBySkillAndDifficulty(skillId,difficulty,questionIndex);
     
         if(question == null)
             throw new Error("question not found");
@@ -238,18 +268,17 @@ app.post("/answer",async (req,res) => {
 app.get("/next",async (req,res) => {
     try {
         const token = getTokenFromRequest(req);
+        const state = await redisClient.hGetAll(`quiz:${token}:state`)
 
-        const currentParticipant = await redisClient.hGet(`quiz:${token}:state`,"participant");
+        const currentParticipant = state.participant;
         
 
         if(currentParticipant != null){
        
-            const questionIndex = +(await redisClient.hGet(`quiz:${token}:state`,"questionIndex"))!;
-            const difficulty = +(await redisClient.hGet(`quiz:${token}:state`,"difficulty"))!;
-            const skillId = await redisClient.hGet(`quiz:${token}:state`,"skillId");
-    
-        
-            const questionCount =  await QuestionModel.countDocuments({skillId,difficulty});
+            const questionIndex = +state.questionIndex;
+            const difficulty = +state.difficulty;
+            const skillId = state.skillId;    
+            const questionCount =  await Question.countDocuments({skillId,difficulty});
     
             const hasNextQuestion = questionIndex < questionCount - 1;
             
@@ -257,16 +286,11 @@ app.get("/next",async (req,res) => {
                 await redisClient.hSet(`quiz:${token}:state`,"questionIndex",questionIndex + 1);
                 return res.json({next:"question"});
             }
-        }
-    
-    
-    
-        if(currentParticipant != null){
-        
-    
+
             const result = await redisClient.hGetAll(`quiz:${token}:result`);
-            const difficulty = +(await redisClient.hGet(`quiz:${token}:state`,"difficulty"))!;
-            const maxDifficulty = +(await redisClient.hGet(`quiz:${token}:state`,"maxDifficulty"))!;
+            const maxDifficulty = +state.maxDifficulty;
+
+
             if(+result.correctAnswers < +result.wrongAnswers)
                 await redisClient.lPush(`quiz:${token}:participants`,`${currentParticipant},${difficulty}`);
             else if(difficulty < maxDifficulty)
@@ -274,7 +298,9 @@ app.get("/next",async (req,res) => {
             
             await redisClient.lPush(`quiz:${token}:results`,JSON.stringify(result));
         }
-        
+    
+    
+
         const str = await redisClient.lPop(`quiz:${token}:participants`);
     
         const hasNextParticipant = str != null;
@@ -296,6 +322,7 @@ app.get("/next",async (req,res) => {
                 duration:0
             })
 
+            await redisClient.expire(`quiz:${token}:result`,HOUR);
       
  
             return res.json({next:"participant"});
@@ -334,6 +361,9 @@ app.get("/result",async (req,res) => {
             { header: 'Accuracy', key: 'accuracy', width: 10 },
     
         ];
+
+
+       
     
     
         for(const result of results){
@@ -341,8 +371,8 @@ app.get("/result",async (req,res) => {
                 participantAnswerCount.set(result.participant, 0);
                 participantCorrectAnswerCount.set(result.participant, 0);
             }
-            participantAnswerCount.set(result.participant, participantAnswerCount.get(result.participant)! + result.correctAnswers + result.wrongAnswers);
-            participantCorrectAnswerCount.set(result.participant, participantCorrectAnswerCount.get(result.participant)! + result.correctAnswers);
+            participantAnswerCount.set(result.participant, participantAnswerCount.get(result.participant)! + +result.correctAnswers + +result.wrongAnswers);
+            participantCorrectAnswerCount.set(result.participant, participantCorrectAnswerCount.get(result.participant)! + +result.correctAnswers);
     
             const row = {
                 name: result.participant,
@@ -367,26 +397,44 @@ app.get("/result",async (req,res) => {
         })
     
         
-        await s3Client.send(setReportCommand);
+        // await s3Client.send(setReportCommand);
     
     
         const reportUrl = getS3ObjectUrl(key);
     
     
+        const participants:{
+            name:string,
+            score:number,
+            rank:number
+        }[] = [];
+
+        for(const name of participantAnswerCount.keys()){
+
+            const score = Math.round(participantCorrectAnswerCount.get(name)! / participantAnswerCount.get(name)! * 100);
+
+            participants.push({name,score,rank:0})
+        }
+    
+
+
+   
+        participants.sort((a,b) => b.score - a.score);
+
+        if(participants.length > 0)
+            participants[0].rank = 1;
+
+        for(let i = 1; i < participants.length; i++){
+            if(participants[i].score == participants[i - 1].score){
+                participants[i].rank = participants[i - 1].rank;
+            }else{
+                participants[i].rank = i + 1;
+            }
+        }
     
     
-        const participants = Array.from(participantAnswerCount.keys());
     
-        participants.sort((a,b) => {
-            return participantCorrectAnswerCount.get(b)! / participantAnswerCount.get(b)! - participantCorrectAnswerCount.get(a)! / participantAnswerCount.get(a)!
-        });
-    
-    
-    
-        const winners = participants.slice(0,3);
-    
-    
-        res.json({winners,reportUrl})
+        res.json({participants,reportUrl})
     }catch (error) {
         console.log(error)
         res.sendStatus(500)
@@ -396,7 +444,22 @@ app.get("/result",async (req,res) => {
 
 
 
+app.post("/exit",async (req,res) => {
+    const token = getTokenFromRequest(req);
 
+
+    await redisClient.del(`quiz:${token}:state`);
+    await redisClient.del(`quiz:${token}:result`);
+    await redisClient.del(`quiz:${token}:participants`);
+
+
+
+    res.sendStatus(200);
+
+})
+
+
+app.use(errorHandler)
 
 
 
