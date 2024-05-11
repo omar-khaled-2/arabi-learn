@@ -6,7 +6,7 @@ import express, { ErrorRequestHandler, Request } from 'express'
 import { createClient } from 'redis';
 import SkillModel from './models/skill'
 import Question from './models/question'
-import { AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, HOUR, MINUTE, REGION, SECOND } from './constants'
+import { HOUR, MINUTE, REGION, SECOND } from './constants'
 import Excel from 'exceljs'
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { getS3ObjectUrl } from './utilties'
@@ -42,11 +42,7 @@ const getTokenFromRequest = (request:Request) => {
 
 const app = express()
 const s3Client = new S3Client({
-    region:REGION,
-    credentials: {
-        accessKeyId:AWS_ACCESS_KEY_ID,
-        secretAccessKey:AWS_SECRET_ACCESS_KEY
-    }
+    region: REGION,
 });
 app.use(express.json())
 
@@ -397,7 +393,7 @@ app.get("/result",async (req,res) => {
         })
     
         
-        // await s3Client.send(setReportCommand);
+        await s3Client.send(setReportCommand);
     
     
         const reportUrl = getS3ObjectUrl(key);

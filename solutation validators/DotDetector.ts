@@ -1,21 +1,14 @@
 
 import {  QuestionDocument } from "../models/question"
 import Coordinate from "../Coordinate";
-import { S3Client } from "@aws-sdk/client-s3";
 import {minWeightAssign} from 'munkres-algorithm';
-import { AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, REGION } from "../constants";
+
 import dbscan from "../dbscan";
 
 import fs from 'fs'
 
 
-const s3Client = new S3Client({
-    region:REGION,
-    credentials: {
-        accessKeyId:AWS_ACCESS_KEY_ID,
-        secretAccessKey:AWS_SECRET_ACCESS_KEY
-    }
-})
+
 
 
 function generateRandomHexColor() {
