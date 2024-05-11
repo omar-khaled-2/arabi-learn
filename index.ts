@@ -80,6 +80,7 @@ app.get("/",(req,res) => {
 
 app.get("/skills",async (req,res) => {
     try {
+        console.log(await Question.countDocuments())
         const skills = await SkillModel.find();
         res.json(skills)
     } catch (error) {
