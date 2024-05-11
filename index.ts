@@ -57,6 +57,8 @@ redisClient.connect()
 mongoose.connect(process.env.MONGODB_URL!)
     .then(() => {
         console.log("connected to mongodb")
+        SkillModel.countDocuments().then(count => console.log(`Found ${count} skills`))
+        Question.countDocuments().then(count => console.log(`Found ${count} questions`))
     })
 
 
@@ -463,7 +465,6 @@ app.use(errorHandler)
 app.listen(port, async() => {
     console.log("Server is listening on port " + port);
 
-    SkillModel.countDocuments().then(count => console.log(`Found ${count} skills`))
-    Question.countDocuments().then(count => console.log(`Found ${count} questions`))
+
 });
 
