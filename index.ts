@@ -56,11 +56,9 @@ redisClient.connect()
 
 mongoose.connect(MONGODB_URL)
     .then(() => {
-        console.log(MONGODB_URL)
     
         console.log("connected to mongodb")
-        SkillModel.countDocuments().then(count => console.log(`Found ${count} skills`))
-        Question.countDocuments().then(count => console.log(`Found ${count} questions`))
+
     })
 
 

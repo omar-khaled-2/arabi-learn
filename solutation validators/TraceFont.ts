@@ -19,6 +19,8 @@ class TraceFont {
 
     private constructor() {}
     async validate(question:QuestionDocument,points:number[]) {
+
+        console.log(points)
         if(points.length == 0) return false;
     
         const getCorrectPointsBinCommand = new GetObjectCommand({
@@ -27,8 +29,12 @@ class TraceFont {
         })
 
         const response = await s3Client.send(getCorrectPointsBinCommand)
+
+        console.log(response)
         const correctPointsString = await response.Body!.transformToString();
 
+
+        console.log(correctPointsString)
 
         const correctPoints:number[] = JSON.parse(correctPointsString);
 
