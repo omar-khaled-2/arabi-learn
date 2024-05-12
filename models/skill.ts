@@ -28,7 +28,7 @@ skillSchema.set("toJSON", {
 
 
 
-const SkillModel = model<SkillDocument>('Skill', skillSchema);
+const SkillModel = model<SkillDocument>('Skill', skillSchema, 'skills');
 
 
 

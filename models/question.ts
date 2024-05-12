@@ -134,7 +134,7 @@ questionSchema.set("toJSON", {
 
 
 
-const Question = model<IQuestion,QuestionModel>('Question', questionSchema);
+const Question = model<IQuestion,QuestionModel>('Question', questionSchema, "questions");
 
 
 
