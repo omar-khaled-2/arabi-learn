@@ -5,6 +5,7 @@ import { config } from "dotenv";
 import Coordinate from "../Coordinate";
 import { REGION } from "../constants";
 
+
 config();
 
 const s3Client = new S3Client({
@@ -20,7 +21,7 @@ class TraceFont {
     private constructor() {}
     async validate(question:QuestionDocument,points:number[]) {
 
-        console.log(points)
+    
         if(points.length == 0) return false;
     
         const getCorrectPointsBinCommand = new GetObjectCommand({
@@ -30,18 +31,26 @@ class TraceFont {
 
         const response = await s3Client.send(getCorrectPointsBinCommand)
 
-        console.log(response)
+
         const correctPointsString = await response.Body!.transformToString();
 
 
-        console.log(correctPointsString)
-
+       
         const correctPoints:number[] = JSON.parse(correctPointsString);
 
         const correctCorrdinates:Coordinate[] = [];
+
+
+
         for(let i = 0;i < correctPoints.length;i+=2){
-            correctCorrdinates.push(new Coordinate(correctPoints[i],correctPoints[i+1]))
+            const x = correctPoints[i];
+            const y = correctPoints[i+1];
+            correctCorrdinates.push(new Coordinate(x,y))
+
         }
+
+
+
 
         const corrdinates:Coordinate[] = [];
         for(let i = 0;i < points.length;i+=2){
@@ -49,7 +58,10 @@ class TraceFont {
                 i--;
                 continue;
             }
-            corrdinates.push(new Coordinate(points[i],points[i+1]))
+            const x = points[i];
+            const y = points[i+1];
+            corrdinates.push(new Coordinate(x,y))
+
         }
 
 
@@ -73,7 +85,7 @@ class TraceFont {
         }
 
 
-  
+     
         if(visited.size < correctCorrdinates.length * .7) return false;
         if(outsides > corrdinates.length * .3) return false;
 

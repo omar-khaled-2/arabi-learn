@@ -80,13 +80,13 @@ app.get("/",(req,res) => {
 })
 
 
-app.get("/skills",async (req,res) => {
+app.get("/skills",async (req,res,next) => {
     try {
   
         const skills = await SkillModel.find();
         res.json(skills)
     } catch (error) {
-        res.sendStatus(500)
+        next(error)
     }
 
 
@@ -182,7 +182,7 @@ app.get("/question",async (req,res,next) => {
 
 })
 
-app.post("/timeout",async (req,res) => {
+app.post("/timeout",async (req,res,next) => {
     try {
         
     const token = getTokenFromRequest(req);
@@ -191,8 +191,7 @@ app.post("/timeout",async (req,res) => {
 
     res.sendStatus(200)
     } catch (error) {
-        console.log(error);
-        res.sendStatus(500)
+        next(error)
     }
 
 
@@ -212,7 +211,7 @@ app.get("/participant",async (req,res,next) => {
 
 })
 
-app.post("/answer",async (req,res) => {
+app.post("/answer",async (req,res,next) => {
     try {
         const token = getTokenFromRequest(req);
         const state = await redisClient.hGetAll(`quiz:${token}:state`);
@@ -255,8 +254,7 @@ app.post("/answer",async (req,res) => {
     
         return res.json({isCorrect})
     } catch (error) {
-        console.log(error)
-        res.sendStatus(500)
+        next(error)
     }
 
 
@@ -264,7 +262,7 @@ app.post("/answer",async (req,res) => {
 
 })
 
-app.get("/next",async (req,res) => {
+app.get("/next",async (req,res,next) => {
     try {
         const token = getTokenFromRequest(req);
         const state = await redisClient.hGetAll(`quiz:${token}:state`)
@@ -333,15 +331,14 @@ app.get("/next",async (req,res) => {
 
         return res.json({next:"results"});
     } catch (error) {
-        console.log(error)
-        res.sendStatus(500)
+        next(error)
     }
  
 })
 
 
 
-app.get("/result",async (req,res) => {
+app.get("/result",async (req,res,next) => {
     try {
         const token = getTokenFromRequest(req);
         const resultsJSONString = await redisClient.lRange(`quiz:${token}:results`,0,-1);
@@ -435,8 +432,7 @@ app.get("/result",async (req,res) => {
     
         res.json({participants,reportUrl})
     }catch (error) {
-        console.log(error)
-        res.sendStatus(500)
+        next(error)
     }
 
 })
