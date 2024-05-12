@@ -6,7 +6,7 @@ import express, { ErrorRequestHandler, Request } from 'express'
 import { createClient } from 'redis';
 import SkillModel from './models/skill'
 import Question from './models/question'
-import { HOUR, MINUTE, REGION, SECOND } from './constants'
+import { HOUR, MINUTE, MONGODB_URL, REGION, SECOND } from './constants'
 import Excel from 'exceljs'
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { getS3ObjectUrl } from './utilties'
@@ -54,8 +54,10 @@ app.use(express.json())
 redisClient.connect()
 
 
-mongoose.connect(process.env.MONGODB_URL!)
+mongoose.connect(MONGODB_URL)
     .then(() => {
+        console.log(MONGODB_URL)
+    
         console.log("connected to mongodb")
         SkillModel.countDocuments().then(count => console.log(`Found ${count} skills`))
         Question.countDocuments().then(count => console.log(`Found ${count} questions`))
